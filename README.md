@@ -10,7 +10,12 @@ Eventually, I'd like to see if this pragma can scale out to web application desi
 
 ## Documentation
 
-Currently, you'll have to read docstrings in the code. [Have at it](https://github.com/yanatan16/fyra/blob/master/core.clj)
+Currently, you'll have to read some code.
+
+- [defrelvar, defview, select/update/delete](https://github.com/yanatan16/fyra/blob/master/src/fyra/core.clj)
+- [relational agebraic operators](https://github.com/yanatan16/fyra/blob/master/src/fyra/relational.clj)
+- [test app inserting and deffing](https://github.com/yanatan16/fyra/blob/master/test/fyra/test_app.clj)
+- [tests using select/update/delete with algebraic operations](https://github.com/yanatan16/fyra/blob/master/test/fyra/core_test.clj)
 
 ## Examples
 
