@@ -1,7 +1,7 @@
 (ns fyra.core
   (:refer-clojure :exclude [ensure update])
   (:require [fyra.impl.memory.core :as mem]
-            [fyra.impl.memory.meta :refer (declare-relvar)]))
+            [fyra.impl.memory.meta :as meta]))
 
 (defn- resolve-args [[doc-string? & rest :as full]]
   (if (string? doc-string?)
@@ -12,8 +12,13 @@
   "Create a base relvar with name, fields in m, and extra arguments
   Extra arguments can be :foreign or :candidate"
   [name m & {:as extra}]
-  (declare-relvar (merge (select-keys extra [:foreign :candidate])
+  (meta/declare-relvar (merge (select-keys extra [:foreign :candidate])
                          {:fields m :name name})))
+
+(defn view
+  "Create a view (named derived relvar)"
+  [name rel]
+  (meta/declare-view name rel))
 
 (defmacro defrelvar
   "Define a relational variable
@@ -25,7 +30,10 @@
 
 (defmacro defview
   "Create a derived relvar as a named view"
-  [name & args] `(throw (Exception. "Not Implemented")))
+  [name & args]
+  (let [[docs rel] (resolve-args args)]
+    `(def ~name ~@docs (view ~(str name) ~rel))))
+
 (defmacro ensure
   "Ensure a condition is never violated"
   [expr] `(throw (Exception. "Not Implemented")))

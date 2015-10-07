@@ -23,7 +23,7 @@
 (defn view? [{:keys [view?]}] view?)
 
 
+(defn declare-view [name rel]
+  rel)
 
-
-(defn declare-view [& args] (throw (Exception. "Not Implemented")))
 (defn declare-condition [& args] (throw (Exception. "Not Implemented")))

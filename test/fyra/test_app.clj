@@ -14,6 +14,10 @@
      :done? Boolean}
     :foreign {TodoList {:list :id}})
 
+(f/defview ListId (r/project TodoList :id))
+(f/defview ColoredItems (r/project (r/join TodoList TodoItem)
+                                   :content :color))
+
 (def home-list
   {:id "home" :title "TODO at home" :color "red"})
 (def home-items
