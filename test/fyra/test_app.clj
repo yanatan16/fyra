@@ -3,20 +3,39 @@
             [fyra.relational :as r]
             [clojure.set :as set]))
 
-(f/defrelvar TodoList
-  {:id String
-   :title String
-   :color String})
+(def TodoList
+  (f/relvar "TodoList"
+    {:id String
+     :title String
+     :color String}))
 
-(f/defrelvar TodoItem
+(def TodoItem
+  (f/relvar "TodoItem"
     {:list String
      :content String
      :done? Boolean}
-    :foreign {TodoList {:list :id}})
+     :foreign {TodoList {:list :id}}))
 
-(f/defview ListId (r/project TodoList :id))
-(f/defview ColoredItems (r/project (r/join TodoList TodoItem)
-                                   :content :color))
+(def ListId (f/view "ListId" (r/project TodoList :id)))
+(def ColoredItems
+  (f/view "ColoredItems"
+    (r/project (r/join TodoList TodoItem)
+               :content :color)))
+
+(f/constrain "No uncolored lists"
+  (fn [select]
+    (= 0 (count (select (r/restrict TodoList #(empty? (:color %))))))))
+(f/constrain "No more than 2 done items in a list"
+  (fn [select]
+    (= 0 (count (select
+      (r/restrict (r/summarize (r/restrict TodoItem :done?)
+                               [:list]
+                               {:num-items count})
+                  #(< 2 (:num-items %))))))))
+(f/constrain "No items without lists"
+  (fn [select]
+    (= (count (select (r/join TodoItem TodoList)))
+       (count (select TodoItem)))))
 
 (def home-list
   {:id "home" :title "TODO at home" :color "red"})
@@ -42,16 +61,18 @@
 (def all-lists #{home-list project-1-list project-2-list})
 (def all-items (set/union home-items project-1-items project-2-items))
 
+(def all-colored-items (->> all-items
+                            (map #(assoc % :color (case (:list %) "home" "red" "blue")))
+                            (map #(select-keys % [:content :color]))
+                            set))
+
 (defn reset-app []
-  (f/delete TodoList)
   (f/delete TodoItem)
+  (f/delete TodoList)
 
   ;; Insert some data
-  (f/insert TodoList home-list)
+  (f/insert TodoList home-list project-1-list project-2-list)
+
   (apply f/insert TodoItem home-items)
-
-  (f/insert TodoList project-1-list)
   (apply f/insert TodoItem project-1-items)
-
-  (f/insert TodoList project-2-list)
   (apply f/insert TodoItem project-2-items))

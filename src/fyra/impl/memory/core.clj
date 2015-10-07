@@ -1,7 +1,7 @@
 (ns fyra.impl.memory.core
   (:refer-clojure :exclude [update])
   (:require [fyra.impl.memory.relational :refer (execute-rel)]
-            [fyra.impl.memory.meta :refer (view?)]))
+            [fyra.impl.memory.meta :refer (view? constraints)]))
 
 (def ^:private -db "database" (atom nil))
 
@@ -19,9 +19,14 @@
         (remove-item item)
         (add-item new-item))))
 
+(defn- test-constraints [db]
+  (doall (for [{:keys [expl f]} (constraints)]
+    (if (not (f #(execute-rel % db)))
+      (throw (ex-info "Violated constraint" {:explanation expl})))))
+  db)
+
 ;; TODO
 ;; assure candidate uniqity
-;; ensure no conditions violated
 ;; update stored views
 ;; verify item matches schema
 (defn insert [{:keys [name id] :as rel} & items]
@@ -29,7 +34,8 @@
   (swap! -db (fn [db]
     (->> items
          (map #(assoc % :_rel id))
-         (reduce #(add-item %1 %2) db)))))
+         (reduce #(add-item %1 %2) db)
+         test-constraints))))
 
 (defn select [rel]
   (->> (execute-rel rel @-db)
@@ -43,13 +49,15 @@
     (fn [db]
       (->> (execute-rel rel db)
            (filter :_rel)
-           (reduce #(update-item %1 %2 f) db)))))
+           (reduce #(update-item %1 %2 f) db)
+           test-constraints))))
 
 ;; TODO: accept a complex relation
 (defn delete [rel]
   (swap! -db
     (fn [db] (->> (execute-rel rel db)
-                  (reduce #(remove-item %1 %2) db)))))
+                  (reduce #(remove-item %1 %2) db)
+                  test-constraints))))
 
 
 

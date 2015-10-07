@@ -12,6 +12,7 @@
     (f/select app/TodoList) => app/all-lists)
   (fact "select TodoItem gives all items"
     (f/select app/TodoItem) => app/all-items))
+
 (facts "about dynamic use of insert, update and delete"
   (fact "inserting works"
     (let [item {:list "project-2" :content "Get approval" :done? false}]
@@ -24,6 +25,7 @@
   (fact "deleting all in a relation works"
     (f/delete app/TodoItem)
     (f/select app/TodoItem) => #{}))
+
 (facts "about selecting using relational algebra"
   (reset-app)
   (fact "project works for a single key"
@@ -93,11 +95,12 @@
       (f/select (r/restrict app/TodoList #(= (:id %) "home")))
         => #{(g app/home-list)}))
   (fact "updating a multiple items works"
-    (let [g #(assoc-in % [:done?] true)]
+    (let [g #(assoc-in % [:done?] false)]
       (f/update (r/restrict app/TodoItem #(= (:list %) "home")) g)
       (f/select (r/restrict app/TodoItem #(= (:list %) "home")))
         => (set (map g app/home-items))))
   (fact "deleting a single list works"
+    (f/delete (r/restrict app/TodoItem #(= (:list %) "project-1")))
     (f/delete (r/restrict app/TodoList #(= (:id %) "project-1")))
     (f/select (r/restrict app/TodoList #(= (:id %) "project-1")))
       => #{})
@@ -110,7 +113,22 @@
   (reset-app)
   (fact "selecting a view works"
     (f/select app/ListId) => (set (map #(select-keys % [:id]) app/all-lists))
-    (f/select app/ColoredItems) => (->> app/all-items
-                                        (map #(assoc % :color (case (:list %) "home" "red" "blue")))
-                                        (map #(select-keys % [:content :color]))
-                                        set)))
+    (f/select app/ColoredItems) => app/all-colored-items
+    (f/delete app/TodoItem)
+    (f/select app/ListId) => (set (map #(select-keys % [:id]) app/all-lists))
+    (f/select app/ColoredItems) => #{}))
+
+(facts "about contraints"
+  (reset-app)
+  (fact "violate a constraint on insertion"
+    (f/insert app/TodoList {:id "empty-color-list"})
+      => (throws #(-> % ex-data :explanation (= "No uncolored lists")))
+    (f/select (r/restrict app/TodoList #(empty? (:color %)))) => #{})
+  (fact "violate a constraint on update"
+    (f/update app/TodoItem #(assoc % :done? true))
+      => (throws #(-> % ex-data :explanation (= "No more than 2 done items in a list")))
+    (count (f/select (r/restrict app/TodoItem :done?))) => 3)
+  (fact "violate a constraint on delete"
+    (f/delete app/TodoList)
+      => (throws #(-> % ex-data :explanation (= "No items without lists")))
+    (count (f/select app/TodoList)) => 3))

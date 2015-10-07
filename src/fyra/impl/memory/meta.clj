@@ -22,8 +22,9 @@
 (defn relvar? [rel] (some? (storage-id rel)))
 (defn view? [{:keys [view?]}] view?)
 
+;; TODO implement storage-required views
+(defn declare-view [name rel] rel)
 
-(defn declare-view [name rel]
-  rel)
-
-(defn declare-condition [& args] (throw (Exception. "Not Implemented")))
+(defn declare-constraint [explanation f]
+  (swap! -mb update-in [:constraints] conj {:expl explanation :f f}))
+(defn constraints [] (:constraints @-mb))
