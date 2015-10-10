@@ -14,10 +14,13 @@
 
 (defn- update-item [db item f]
   (let [new-item (f item)]
-    (assert (:_rel new-item) "Update must keep the :_rel key")
     (-> db
         (remove-item item)
         (add-item new-item))))
+
+(defn- make-update-item-f [updates]
+  #(reduce (fn [it [k v]] (if (fn? v) (clojure.core/update it k v)
+                                      (assoc it k v))) % updates))
 
 (defn- test-constraints [db]
   (doall (for [{:keys [expl f]} (constraints)]
@@ -43,14 +46,13 @@
        set))
 
 ;; TODO: verify item matches schema
-;; TODO: (update rel :field fn :field fn)
-(defn update [rel f]
-  (swap! -db
-    (fn [db]
+(defn update [rel & {:as updates}]
+  (let [f (make-update-item-f updates)]
+    (swap! -db (fn [db]
       (->> (execute-rel rel db)
            (filter :_rel)
            (reduce #(update-item %1 %2 f) db)
-           test-constraints))))
+           test-constraints)))))
 
 ;; TODO: accept a complex relation
 (defn delete [rel]

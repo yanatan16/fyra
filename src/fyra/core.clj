@@ -37,4 +37,4 @@
 (defn update
   "Execute a update operation on a relation.
   Applies f to each item."
-  [rel f] (mem/update rel f))
+  [rel & updts] (apply mem/update rel updts))

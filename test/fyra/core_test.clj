@@ -20,8 +20,8 @@
       (f/select app/TodoItem) => (conj app/all-items item)))
   (fact "updating all in a relation works"
     (let [updtr #(update-in % [:title] str "UPDATED")]
-      (f/update app/TodoList updtr)
-      (f/select app/TodoList) => (set (map updtr app/all-lists))))
+      (f/update app/TodoList :title #(str % "UPDATED"))
+      (f/select app/TodoList) => (set (map #(update % :title str "UPDATED") app/all-lists))))
   (fact "deleting all in a relation works"
     (f/delete app/TodoItem)
     (f/select app/TodoItem) => #{}))
@@ -89,16 +89,21 @@
              {:color "blue" :num-items (+ (count app/project-1-items)
                                           (count app/project-2-items))}})))
 (facts "about updating and deleting using relational algebra"
-  (fact "updating a single list works"
+  (fact "updating a single list with a function works"
     (let [g #(update-in % [:title] str "UPDATED")]
-      (f/update (r/restrict app/TodoList #(= (:id %) "home")) g)
+      (f/update (r/restrict app/TodoList #(= (:id %) "home")) :title #(str % "UPDATED"))
       (f/select (r/restrict app/TodoList #(= (:id %) "home")))
         => #{(g app/home-list)}))
-  (fact "updating a multiple items works"
+  (fact "updating multiple items with a set value works"
     (let [g #(assoc-in % [:done?] false)]
-      (f/update (r/restrict app/TodoItem #(= (:list %) "home")) g)
+      (f/update (r/restrict app/TodoItem #(= (:list %) "home")) :done? false)
       (f/select (r/restrict app/TodoItem #(= (:list %) "home")))
         => (set (map g app/home-items))))
+  (fact "updating multiple items with multiple values works"
+    (let [g #(-> % (assoc :done? false) (update :content (partial str "titlez")))]
+      (f/update (r/restrict app/TodoItem #(= (:list %) "project-1")) :done? false :content (partial str "titlez"))
+      (f/select (r/restrict app/TodoItem #(= (:list %) "project-1")))
+        => (set (map g app/project-1-items))))
   (fact "deleting a single list works"
     (f/delete (r/restrict app/TodoItem #(= (:list %) "project-1")))
     (f/delete (r/restrict app/TodoList #(= (:id %) "project-1")))
@@ -125,7 +130,7 @@
       => (throws #(-> % ex-data :explanation (= "No uncolored lists")))
     (f/select (r/restrict app/TodoList #(empty? (:color %)))) => #{})
   (fact "violate a constraint on update"
-    (f/update app/TodoItem #(assoc % :done? true))
+    (f/update app/TodoItem :done? true)
       => (throws #(-> % ex-data :explanation (= "No more than 2 done items in a list")))
     (count (f/select (r/restrict app/TodoItem :done?))) => 3)
   (fact "violate a constraint on delete"
