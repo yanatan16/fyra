@@ -15,7 +15,7 @@
 
 (defn foreign-keys [rel-1 rel-2]
   (or (get-in (relvar-info rel-1) [:foreign rel-2])
-      (set/map-invert (get-in (relvar-info rel-2) [:foreign rel-1]))
+      (if-let [m (get-in (relvar-info rel-2) [:foreign rel-1])] (set/map-invert m))
       (throw (ex-info "No foreign keys on relations" {:rels [rel-1 rel-2]}))))
 
 (defn storage-id [{:keys [id] :as rel}]

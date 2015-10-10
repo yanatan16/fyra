@@ -65,7 +65,14 @@
         => (f/select (r/join app/TodoItem app/TodoList)))
     (fact "join works with foreign keys"
       (f/select (r/join app/TodoList app/TodoItem))
-        => (set/join app/all-lists app/all-items {:id :list})))
+        => (set/join app/all-lists app/all-items {:id :list}))
+    (fact "join fails when two unrelated relations are used"
+      (f/select (r/join app/Unrelated app/TodoItem))
+        => (throws #"No foreign keys on relations"))
+    ;; TODO enable this
+    #_(fact "join can use projected and extended relations"
+      (f/select (r/join (r/project app/TodoList :id)
+                        (r/extend app/TodoItem :abc #(do % "def")))) => #{}))
   (facts "about minus"
     (fact "minus will take out appropriate items"
       (f/select (r/minus app/TodoItem

@@ -16,6 +16,8 @@
      :done? Boolean}
      :foreign {TodoList {:list :id}}))
 
+(def Unrelated (f/relvar "Unrelated" {:stuff String}))
+
 (def ListId (f/view "ListId" (r/project TodoList :id)))
 (def ColoredItems
   (f/view "ColoredItems"
