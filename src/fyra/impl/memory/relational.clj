@@ -1,12 +1,8 @@
 (ns fyra.impl.memory.relational
   (:refer-clojure :exclude [extend])
   (:require [clojure.set :as set]
-            [fyra.impl.memory.meta :refer (foreign-keys storage-id view?)]))
-
-(defn execute-rel [rel db]
-  (if-let [sid (storage-id rel)]
-    (get db sid)
-    (rel db)))
+            [fyra.impl.memory.meta :refer (foreign-keys)]
+            [fyra.impl.memory.db :refer (execute-rel)]))
 
 (defn- map-values [f m]
   (into {} (for [[k v] m] [k (f v)])))
