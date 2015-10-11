@@ -5,9 +5,15 @@
 
 ;; declares
 
-(defn declare-relvar [{:keys [name] :as rel}]
-  (let [id name]
-    (swap! -mb assoc-in [:relvar id] rel)
+(defn munge-candidate-keys [cks]
+  (cond (and (vector? cks) (vector? (first cks))) (conj cks [])
+        (vector? cks) [cks []]
+        :else [[]]))
+
+(defn declare-relvar [{:keys [name candidate] :as rel}]
+  (let [id name
+        cks (munge-candidate-keys candidate)]
+    (swap! -mb assoc-in [:relvar id] (assoc rel :candidate cks))
     {:name name :id id :view? false}))
 
 (defn relvar-info [{:keys [id]}]
@@ -17,6 +23,9 @@
   (or (get-in (relvar-info rel-1) [:foreign rel-2])
       (if-let [m (get-in (relvar-info rel-2) [:foreign rel-1])] (set/map-invert m))
       (throw (ex-info "No foreign keys on relations" {:rels [rel-1 rel-2]}))))
+
+(defn candidate-keys [rel]
+  (:candidate (relvar-info rel)))
 
 (defn storage-id [{:keys [id] :as rel}]
   (and (map? rel) id))

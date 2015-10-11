@@ -9,7 +9,6 @@
                                       (assoc it k v))) % updates))
 
 ;; TODO
-;; assure candidate uniqity
 ;; update stored views
 ;; verify item matches schema
 (defn insert [{:keys [name id] :as rel} & items]

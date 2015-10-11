@@ -7,14 +7,15 @@
   (f/relvar "TodoList"
     {:id String
      :title String
-     :color String}))
+     :color String}
+    :candidate [[:id] [:title :color]]))
 
 (def TodoItem
   (f/relvar "TodoItem"
     {:list String
      :content String
      :done? Boolean}
-     :foreign {TodoList {:list :id}}))
+    :foreign {TodoList {:list :id}}))
 
 (def Unrelated (f/relvar "Unrelated" {:stuff String}))
 

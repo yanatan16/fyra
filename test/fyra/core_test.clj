@@ -26,6 +26,17 @@
     (f/delete app/TodoItem)
     (f/select app/TodoItem) => #{}))
 
+(facts "about violating candidate uniqueness"
+  (reset-app)
+  (fact "inserting fails when candidate keys aren't unique"
+    (f/insert app/TodoList {:id "home" :title "Home2" :color "red"})
+      => (throws #"Candidate uniquness violated" #(-> % ex-data :candidate-keys (= [:id])))
+    (f/select app/TodoList) => app/all-lists)
+  (fact "updating fails when candidate keys aren't unique"
+    (f/update app/TodoList :title "same" :color "purple")
+      => (throws #"Candidate uniquness violated" #(-> % ex-data :candidate-keys (= [:title :color])))
+    (f/select app/TodoList) => app/all-lists))
+
 (facts "about selecting using relational algebra"
   (reset-app)
   (fact "project works for a single key"
