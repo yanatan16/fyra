@@ -1,23 +1,36 @@
 (ns fyra.impl.memory.meta
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as set]
+            [clojure.core.typed :refer (ann-form) :as t]))
 
-(def ^:private -mb "metadatabase" (atom nil))
+;; types
+(def RelvarInfo (t/HMap :mandatory {:name String
+                                    }))
 
-;; declares
+(def ^:private -mb "metadatabase"
+  (t/atom> (t/HMap :mandatory {:relvar (t/Map String )})
+           {:relvar {} :constraints '()}))
+(ann -mb (t/Atom1 (t/HMap :optional {:relvar })))
 
-(defn munge-candidate-keys [cks]
-  (cond (and (vector? cks) (vector? (first cks))) (conj cks [])
-        (vector? cks) [cks []]
-        :else [[]]))
+(defn- munge-candidate-keys [cks]
+  (cond (vector? (first cks)) (conj cks [])
+        (vector? cks) [cks []]))
+(ann-form munge-candidate-keys [CandidateKeysInput -> CandidateKeys])
 
 (defn declare-relvar [{:keys [name candidate] :as rel}]
   (let [id name
-        cks (munge-candidate-keys candidate)]
+        cks (munge-candidate-keys (or candidate [[]]))]
     (swap! -mb assoc-in [:relvar id] (assoc rel :candidate cks))
     {:name name :id id :view? false}))
+(ann-form declare-relvar [(t/HMap :mandatory {:name String
+                                              :fields (t/HMap)}
+                                  :optional {:candidate CandidateKeysInput
+                                             :foreign (t/Map Relation (t/))})])
 
 (defn relvar-info [{:keys [id]}]
   (get-in @-mb [:relvar id]))
+
+(defn relvar-spec [rel]
+  (:fields (relvar-spec rel)))
 
 (defn foreign-keys [rel-1 rel-2]
   (or (get-in (relvar-info rel-1) [:foreign rel-2])

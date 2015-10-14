@@ -1,51 +1,43 @@
 (ns fyra.impl.memory.relational
   (:refer-clojure :exclude [extend])
-  (:require [clojure.set :as set]
-            [fyra.impl.memory.meta :refer (foreign-keys)]
-            [fyra.impl.memory.db :refer (execute-rel)]))
+  (:require [clojure.core.typed :as t]
+            [fyra.impl.memory.types :as memt]
+            [fyra.impl.memory.util :refer [map-values]]))
 
-(defn- map-values [f m]
-  (into {} (for [[k v] m] [k (f v)])))
+(defn- type-of-fn [f]
+  (let [rt (:tag (meta f))]
+    (assert rt (str "Can't determine the return type of " %))
+    rt))
 
 (defn project [rel & ks]
-  (fn [db] (->> (execute-rel rel db)
-                (map #(select-keys % (conj ks :_id)))
-                set)))
+  (let [skf #(select-keys % ks)]
+    (memt/->MapFilterRelation identity skf skf rel)))
 
 (defn project-away [rel & ks]
-  (fn [db] (->> (execute-rel rel db)
-                (map #(apply dissoc % ks))
-                set)))
+  (let [skf #(apply dissoc % ks)]
+    (memt/->MapFilterRelation identity skf skf rel)))
 
-(defn extend [rel & {:as exts}]
-  (fn [db] (->> (execute-rel rel db)
-                (map (fn [item]
-                       (merge item (map-values #(% item) exts))))
-                set)))
+(defn extend [rel {:as exts}]
+  (let [mapf (fn [item] (merge item (map-values #(% item) exts)))
+        typef (fn [type] (merge type (map-values type-of-fn exts)))]
+    (memt/->MapFilterRelation identity mapf typef rel)))
 
 (defn restrict [rel f]
-  (fn [db] (->> (execute-rel rel db)
-                (filter f)
-                set)))
+  (if (memt/updatable? rel)
+      (memt/->UpdateMapFilterRelation f identity identity rel)
+      (memt/->MapFilterRelation f identity identity rel)))
 
 (defn join [rel-1 rel-2]
-  (let [foreign (foreign-keys rel-1 rel-2)]
-    (fn [db] (let [it-1 (execute-rel rel-1 db)
-                   it-2 (execute-rel rel-2 db)]
-               (set/join it-1 it-2 foreign)))))
+  (let [jrel (memt/->JoinedRelation rel-1 rel-2)]
+    (memt/foreign-keys jrel) ; force an assertion to be called
+    jrel))
 
 (defn minus [rel-1 rel-2]
-  (fn [db] (->> [rel-1 rel-2]
-                (map #(execute-rel % db))
-                (#(set/difference (first %) (second %))))))
-
-(defn summarize-group [acc km grp]
-  (if (fn? acc) (acc grp)
-      (merge km (map-values #(% grp) acc))))
+  (let [srel (memt/->SubtractedRelation rel-1 rel-2)]
+    (memt/reltype srel) ; force assertion
+    srel))
 
 (defn summarize [rel ks acc]
-  (fn [db]
-    (->> (execute-rel rel db)
-         (reduce #(update-in %1 [(select-keys %2 ks)] conj %2) {})
-         (map (fn [[km grp]] (summarize-group acc km grp)))
-         set)))
+  (if (fn? acc)
+      (->AggReducedRelation ks acc rel)
+      (->AggregatedRelation ks (map-values type-of-fn acc) acc rel)))

@@ -20,7 +20,7 @@
       (f/select app/TodoItem) => (conj app/all-items item)))
   (fact "updating all in a relation works"
     (let [updtr #(update-in % [:title] str "UPDATED")]
-      (f/update app/TodoList :title #(str % "UPDATED"))
+      (f/update app/TodoList {:title #(str % "UPDATED")})
       (f/select app/TodoList) => (set (map #(update % :title str "UPDATED") app/all-lists))))
   (fact "deleting all in a relation works"
     (f/delete app/TodoItem)
@@ -33,7 +33,7 @@
       => (throws #"Candidate uniquness violated" #(-> % ex-data :candidate-keys (= [:id])))
     (f/select app/TodoList) => app/all-lists)
   (fact "updating fails when candidate keys aren't unique"
-    (f/update app/TodoList :title "same" :color "purple")
+    (f/update app/TodoList {:title "same" :color "purple"})
       => (throws #"Candidate uniquness violated" #(-> % ex-data :candidate-keys (= [:title :color])))
     (f/select app/TodoList) => app/all-lists))
 
@@ -50,7 +50,7 @@
       => (set (map #(select-keys % [:id]) app/all-lists)))
   (fact "extend creates new keys"
     (let [first-word #(-> % :content (string/split #" ") first)]
-      (f/select (r/extend app/TodoItem :first-word first-word))
+      (f/select (r/extend app/TodoItem {:first-word first-word}))
         => (set (map #(assoc % :first-word (first-word %)) app/all-items))))
   (facts "about restrict"
     (fact "restrict to done items"
@@ -83,7 +83,7 @@
     ;; TODO enable this
     #_(fact "join can use projected and extended relations"
       (f/select (r/join (r/project app/TodoList :id)
-                        (r/extend app/TodoItem :abc #(do % "def")))) => #{}))
+                        (r/extend app/TodoItem {:abc #(do % "def")}))) => #{}))
   (facts "about minus"
     (fact "minus will take out appropriate items"
       (f/select (r/minus app/TodoItem
@@ -109,17 +109,17 @@
 (facts "about updating and deleting using relational algebra"
   (fact "updating a single list with a function works"
     (let [g #(update-in % [:title] str "UPDATED")]
-      (f/update (r/restrict app/TodoList #(= (:id %) "home")) :title #(str % "UPDATED"))
+      (f/update (r/restrict app/TodoList #(= (:id %) "home")) {:title #(str % "UPDATED")})
       (f/select (r/restrict app/TodoList #(= (:id %) "home")))
         => #{(g app/home-list)}))
   (fact "updating multiple items with a set value works"
     (let [g #(assoc-in % [:done?] false)]
-      (f/update (r/restrict app/TodoItem #(= (:list %) "home")) :done? false)
+      (f/update (r/restrict app/TodoItem #(= (:list %) "home")) {:done? false})
       (f/select (r/restrict app/TodoItem #(= (:list %) "home")))
         => (set (map g app/home-items))))
   (fact "updating multiple items with multiple values works"
     (let [g #(-> % (assoc :done? false) (update :content (partial str "titlez")))]
-      (f/update (r/restrict app/TodoItem #(= (:list %) "project-1")) :done? false :content (partial str "titlez"))
+      (f/update (r/restrict app/TodoItem #(= (:list %) "project-1")) {:done? false :content (partial str "titlez")})
       (f/select (r/restrict app/TodoItem #(= (:list %) "project-1")))
         => (set (map g app/project-1-items))))
   (fact "deleting a single list works"
@@ -148,7 +148,7 @@
       => (throws #(-> % ex-data :explanation (= "No uncolored lists")))
     (f/select (r/restrict app/TodoList #(empty? (:color %)))) => #{})
   (fact "violate a constraint on update"
-    (f/update app/TodoItem :done? true)
+    (f/update app/TodoItem {:done? true})
       => (throws #(-> % ex-data :explanation (= "No more than 2 done items in a list")))
     (count (f/select (r/restrict app/TodoItem :done?))) => 3)
   (fact "violate a constraint on delete"

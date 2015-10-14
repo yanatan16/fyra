@@ -2,34 +2,41 @@
   (:refer-clojure :exclude [extend max])
   (:require [fyra.impl.memory.core :as db]
             [fyra.impl.memory.meta :refer (relvar?)]
-            [fyra.impl.memory.relational :as mem]))
+            [fyra.impl.memory.relational :as mem]
+            [fyra.types :refer [Relation Tuple]]
+            [clojure.core.typed :refer [ann Kw U Fn Map Num]]))
 
+(ann project [Relation Kw * -> Relation])
 (defn project
   "set-projection of the relation. equivalent to mapping select-keys"
   [rel & ks]
   (apply mem/project rel ks))
 
+(ann project-away [Relation Kw * -> Relation])
 (defn project-away
   "the dual of project. equivalent to mapping dissoc-keys"
   [rel & ks]
   (apply mem/project-away rel ks))
 
+(ann extend [Relation (Map Kw (Fn [Tuple -> Any])) * -> Relation])
 (defn extend
   "extend the relation with more fields.
   map over items, adding fields by calling
   each of exts values as a function of the item
 
   example: (extend rel :new-field #(* (:width %) (:height %)))"
-  [rel & exts]
-  (apply mem/extend rel exts))
+  [rel exts]
+  (mem/extend rel exts))
 
-
+(ann restrict [Relation (Fn [Tuple -> Boolean]) -> Relation])
 (defn restrict
   "restrict the relation by a condition
   equivalent to a filter on the items"
   [rel f]
   (mem/restrict rel f))
 
+(ann summarize [Relation (Vec Kw) (U (Fn [(Seqable Tuple) -> Tuple])
+                                     (Map Kw (Fn [(Seqable Tuple) -> Any]))) -> Relation])
 (defn summarize
   "aggregation of the relation
   first, it aggregates the items in the relation
@@ -45,20 +52,25 @@
   [rel agg-keys agg-op]
   (mem/summarize rel agg-keys agg-op))
 
+(ann join [Relation Relation -> Relation])
 (defn join
   "set-join two relations"
   [rel-1 rel-2]
   (mem/join rel-1 rel-2))
 
+(ann minus [Relation Relation -> Relation])
 (defn minus
   "set-minus two relations"
   [rel-1 rel-2]
   (mem/minus rel-1 rel-2))
 
 ;; Summarizers
+(ann sum-key [Kw (Seqable Tuple) -> Num])
 (defn sum-key
   "Sum a key in a collection"
   [k coll] (apply + (map k coll)))
+
+(ann sum-key [Kw (Seqable Tuple) -> Tuple])
 (defn maximum-key
   "Find the item in a collection with maximum value at key k"
   [k coll] (reduce #(if (> (k %1) (k %2)) %1 %2) coll))
