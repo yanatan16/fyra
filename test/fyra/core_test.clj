@@ -30,11 +30,11 @@
   (reset-app)
   (fact "inserting fails when candidate keys aren't unique"
     (f/insert app/TodoList {:id "home" :title "Home2" :color "red"})
-      => (throws #"Candidate uniquness violated" #(-> % ex-data :candidate-keys (= [:id])))
+      => (throws #"Item is not unique under candidate" #(-> % ex-data :candidate (= [:id])))
     (f/select app/TodoList) => app/all-lists)
   (fact "updating fails when candidate keys aren't unique"
     (f/update app/TodoList {:title "same" :color "purple"})
-      => (throws #"Candidate uniquness violated" #(-> % ex-data :candidate-keys (= [:title :color])))
+      => (throws #"Item is not unique under candidate" #(-> % ex-data :candidate (= [:title :color])))
     (f/select app/TodoList) => app/all-lists))
 
 (facts "about selecting using relational algebra"
@@ -49,7 +49,7 @@
     (f/select (r/project-away app/TodoList :title :color))
       => (set (map #(select-keys % [:id]) app/all-lists)))
   (fact "extend creates new keys"
-    (let [first-word #(-> % :content (string/split #" ") first)]
+    (let [first-word ^String #(-> % :content (string/split #" ") first)]
       (f/select (r/extend app/TodoItem {:first-word first-word}))
         => (set (map #(assoc % :first-word (first-word %)) app/all-items))))
   (facts "about restrict"
@@ -64,11 +64,11 @@
       (f/select (r/restrict app/TodoItem #(do % false))) => #{}))
   (facts "about summarize"
     (fact "find number of lists by color"
-      (f/select (r/summarize app/TodoList [:color] {:num-items count}))
+      (f/select (r/summarize app/TodoList [:color] {:num-items ^Integer #(count %)}))
         => #{{:color "red" :num-items 1}
              {:color "blue" :num-items 2}})
     (fact "find total number of items without a grouping"
-      (f/select (r/summarize app/TodoItem [] {:num-items count}))
+      (f/select (r/summarize app/TodoItem [] {:num-items ^Integer #(count %)}))
         => #{{:num-items (count app/all-items)}}))
   (facts "about join"
     (fact "join is commutative"
@@ -78,12 +78,14 @@
       (f/select (r/join app/TodoList app/TodoItem))
         => (set/join app/all-lists app/all-items {:id :list}))
     (fact "join fails when two unrelated relations are used"
+      (f/select (r/join app/Unrelated app/TodoItem)) => #{}
+      (f/insert app/Unrelated {:stuff "yoyo"})
       (f/select (r/join app/Unrelated app/TodoItem))
-        => (throws #"No foreign keys on relations"))
+        => (set (map #(assoc % :stuff "yoyo") app/all-items)))
     ;; TODO enable this
     #_(fact "join can use projected and extended relations"
       (f/select (r/join (r/project app/TodoList :id)
-                        (r/extend app/TodoItem {:abc #(do % "def")}))) => #{}))
+                        (r/extend app/TodoItem {:abc ^String #(do % "def")}))) => #{}))
   (facts "about minus"
     (fact "minus will take out appropriate items"
       (f/select (r/minus app/TodoItem
@@ -92,17 +94,17 @@
   (facts "about combining multiple algebraic functions"
     (fact "find max number of lists by color"
       (f/select
-        (r/summarize (r/summarize app/TodoList [:color] {:num-items count})
+        (r/summarize (r/summarize app/TodoList [:color] {:num-items ^Integer #(count %)})
                      [] #(r/maximum-key :num-items %)))
           => #{{:color "blue" :num-items 2}})
     (fact "find number of items in a list"
       (f/select (r/summarize (r/restrict app/TodoItem #(= (:list %) "home"))
-                             [:list] {:num-items count}))
+                             [:list] {:num-items ^Integer #(count %)}))
         => #{{:list "home" :num-items (count app/home-items)}})
     (fact "Find number of items in colored lists"
       (f/select (r/summarize (r/join app/TodoList app/TodoItem)
                              [:color]
-                             {:num-items count}))
+                             {:num-items ^Integer #(count %)}))
         => #{{:color "red" :num-items (count app/home-items)}
              {:color "blue" :num-items (+ (count app/project-1-items)
                                           (count app/project-2-items))}})))
@@ -141,7 +143,11 @@
     (f/select app/ListId) => (set (map #(select-keys % [:id]) app/all-lists))
     (f/select app/ColoredItems) => #{}))
 
-(facts "about contraints"
+#_(facts "about typechecking"
+  ;TODO
+  )
+
+#_(facts "about contraints"
   (reset-app)
   (fact "violate a constraint on insertion"
     (f/insert app/TodoList {:id "empty-color-list"})

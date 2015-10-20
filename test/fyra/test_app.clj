@@ -15,7 +15,7 @@
     {:list String
      :content String
      :done? Boolean}
-    :foreign {TodoList {:list :id}}))
+    :foreign {'TodoList {:list :id}}))
 
 (def Unrelated (f/relvar "Unrelated" {:stuff String}))
 
@@ -26,19 +26,19 @@
                :content :color)))
 
 (f/constrain "No uncolored lists"
-  (fn [select]
-    (= 0 (count (select (r/restrict TodoList #(empty? (:color %))))))))
+  (r/restrict TodoList #(empty? (:color %)))
+  #(= 0 (count %)))
+
 (f/constrain "No more than 2 done items in a list"
-  (fn [select]
-    (= 0 (count (select
-      (r/restrict (r/summarize (r/restrict TodoItem :done?)
-                               [:list]
-                               {:num-items count})
-                  #(< 2 (:num-items %))))))))
+  (r/restrict (r/summarize (r/restrict TodoItem :done?)
+                           [:list]
+                           {:num-items ^Integer #(count %)})
+              (fn [{:keys [num-items]}] (< 2 num-items)))
+  #(= 0 (count %)))
+
 (f/constrain "No items without lists"
-  (fn [select]
-    (= (count (select (r/join TodoItem TodoList)))
-       (count (select TodoItem)))))
+  [(r/join TodoItem TodoList) TodoItem]
+  #(= (count %1) (count %2)))
 
 (def home-list
   {:id "home" :title "TODO at home" :color "red"})
@@ -72,6 +72,7 @@
 (defn reset-app []
   (f/delete TodoItem)
   (f/delete TodoList)
+  (f/delete Unrelated)
 
   ;; Insert some data
   (f/insert TodoList home-list project-1-list project-2-list)

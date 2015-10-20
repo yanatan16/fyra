@@ -4,26 +4,53 @@
             [clojure.core.typed :as t]
             [fyra.types :as ft]))
 
+;;;;;;;;;;;;;;;;
+;;; Declares ;;;
+;;;;;;;;;;;;;;;;
 
-(t/defn ^:private make-update-item-f
-  [updates :- (t/Map t/Kw (t/Fn [ft/Tuple -> Any]))]
+(t/ann declare-relvar [(t/HMap :mandatory {:name String
+                                           :fields (t/Map t/Kw t/Type)}
+                               :optional {:candidate ft/CandidateKeysList
+                                          :foreign ft/ForeignKeysMap})
+                       -> RelVar])
+(defn declare-relvar [{:keys [name candidate foreign fields]}]
+  (memt/make-relvar {:name name
+                     :type fields
+                     :candidates candidate
+                     :foreign foreign}))
+
+(t/ann declare-view [String ft/IRelation -> ft/IRelation])
+(defn declare-view [name rel] rel)
+
+(t/ann declare-constraint [String (t/Coll ft/IConstrainable) ft/ConstraintFn -> t/Any])
+(defn declare-constraint [explanation rels f]
+  (throw (Exception. "not implemented"))
+  #_(memt/constrain! explanation rels f))
+
+;;;;;;;;;;;;;;;;;;
+;;; Operations ;;;
+;;;;;;;;;;;;;;;;;;
+
+(t/ann make-update-item-f [(t/Map t/Kw [ft/Tuple -> Any]) ->
+                           [(t/Map t/Kw t/Any) -> (t/Map t/Kw t/Any)]])
+(defn ^:private make-update-item-f [updates]
   #(reduce (fn [it [k v]] (if (fn? v) (clojure.core/update it k v)
                                       (assoc it k v))) % updates))
 
-(t/ann insert [memt/IInsertable ft/Tuple *])
+(t/ann insert [ft/IInsertable ft/Tuple * -> Any])
 (defn insert [rel & items]
-  (memt/conj! items))
+  (ft/conj! rel items))
 
-(t/ann select [memt/IRelation])
+(t/ann select [ft/IRelation -> (t/Set ft/Tuple)])
 (defn select [rel] @rel)
 
-(t/ann update [memt/IUpdatable (t/Map t/Kw (t/Fn [ft/Tuple -> Any]))])
+(t/ann update [ft/IUpdatable (t/Map t/Kw (t/Fn [ft/Tuple -> Any])) -> Any])
 (defn update [rel {:as updates}]
-  (memt/update! rel (make-update-item-f updates)))
+  (ft/update! rel (make-update-item-f updates)))
 
-(t/ann delete [memt/IDeletable])
+(t/ann delete [ft/IDeletable -> Any])
 (defn delete [rel]
-  (memt/del! rel))
+  (ft/del! rel))
 
 
 

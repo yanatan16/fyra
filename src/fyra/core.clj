@@ -1,51 +1,49 @@
 (ns fyra.core
   (:refer-clojure :exclude [update])
   (:require [fyra.impl.memory.core :as mem]
-            [fyra.impl.memory.meta :as meta]
-            [fyra.types :refer [RelVarType CandidateKeysInput Constraint
-                                ForeignKeysInput Relation]]
-            [clojure.core.typed :refer [ann Kw U Fn Map Num]]))
+            [fyra.types :as ft]
+            [clojure.core.typed :as t]))
 
-(ann relvar [String RelVarType & :optional {:candidate CandidateKeysInput
-                                            :foreign ForeignKeysInput}
-             -> RelVar])
+(t/ann relvar [String ft/RelType & :optional {:candidate ft/CandidateKeysInput
+                                              :foreign ft/ForeignKeysInput}
+             -> ft/UIRelation])
 (defn relvar
   "Create a base relvar with name, fields in m, and extra arguments
   Extra arguments can be :foreign or :candidate"
   [name m & {:as extra}]
-  (meta/declare-relvar (merge (select-keys extra [:foreign :candidate])
-                         {:fields m :name name})))
+  (mem/declare-relvar (merge (select-keys extra [:foreign :candidate])
+                      {:fields m :name name})))
 
-(ann view [String Relation -> Relation])
+(t/ann view [String ft/IRelation -> ft/IRelation])
 (defn view
   "Create a view (named derived relvar)"
   [name rel]
-  (meta/declare-view name rel))
+  (mem/declare-view name rel))
 
-(ann constrain [String Constraint -> Any])
+(t/ann constrain [String (t/Coll ft/IConstrainable) ft/ConstraintFn -> t/Any])
 (defn constrain
   "Create a system constraint that must always be valid.
   f is a function of a relation that executes it in the
   interim db state"
-  [explanation f]
-  (meta/declare-constraint explanation f))
+  [explanation rels f] nil)
+  ; (mem/declare-constraint explanation rels f))
 
-(ann select ExecuteRelation)
+(t/ann select [ft/Relation -> ft/Data])
 (defn select
   "Execute a selection operation on a relation"
   [rel] (mem/select rel))
 
-(ann insert [Relation Tuple * -> Any])
+(t/ann insert [ft/UIRelation ft/Tuple * -> t/Any])
 (defn insert
   "Execute a insertion operation on a base relation"
   [baserel & items] (apply mem/insert baserel items))
 
-(ann delete [Relation -> Any])
+(t/ann delete [ft/URelation -> t/Any])
 (defn delete
   "Execute a deletion operation on a relation."
   [rel] (mem/delete rel))
 
-(ann update [Relation (Map Kw (Fn [Tuple -> Any])) -> Any])
+(t/ann update [ft/URelation (t/Map t/Kw [ft/Tuple -> t/Any]) -> t/Any])
 (defn update
   "Execute a update operation on a relation.
   Applies f to each item."
