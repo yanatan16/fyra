@@ -51,6 +51,14 @@ Currently, you'll have to read some code.
 
 The [real estate](https://github.com/yanatan16/fyra/tree/master/examples/real-estate) example from the original paper is reproduced here.
 
+## TODO
+
+- Observable API needs to be added
+- Run core.typed on it
+- enable the example
+- add api for storage hints
+- port to cljs/reagent
+
 ## License
 
 See [LICENSE](https://github.com/yanatan16/fyra/blob/master/LICENSE) file.

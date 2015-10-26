@@ -20,13 +20,13 @@
   [name rel]
   (mem/declare-view name rel))
 
-(t/ann constrain [String (t/Coll ft/IConstrainable) ft/ConstraintFn -> t/Any])
+(t/ann constrain [String ft/IConstrainable ft/ConstraintFn -> t/Any])
 (defn constrain
   "Create a system constraint that must always be valid.
   f is a function of a relation that executes it in the
   interim db state"
-  [explanation rels f] nil)
-  ; (mem/declare-constraint explanation rels f))
+  [explanation rel f]
+  (mem/declare-constraint explanation rel f))
 
 (t/ann select [ft/Relation -> ft/Data])
 (defn select

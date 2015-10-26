@@ -37,8 +37,9 @@
   #(= 0 (count %)))
 
 (f/constrain "No items without lists"
-  [(r/join TodoItem TodoList) TodoItem]
-  #(= (count %1) (count %2)))
+ (r/minus TodoItem (r/project (r/join TodoItem TodoList)
+                              :list :content :done?))
+ #(= 0 (count %)))
 
 (def home-list
   {:id "home" :title "TODO at home" :color "red"})

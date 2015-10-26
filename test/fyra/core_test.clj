@@ -47,11 +47,11 @@
       => (set (map #(select-keys % [:title :color]) app/all-lists)))
   (fact "project-away works for multiple keys"
     (f/select (r/project-away app/TodoList :title :color))
-      => (set (map #(select-keys % [:id]) app/all-lists)))
+    => (set (map #(select-keys % [:id]) app/all-lists)))
   (fact "extend creates new keys"
-    (let [first-word ^String #(-> % :content (string/split #" ") first)]
-      (f/select (r/extend app/TodoItem {:first-word first-word}))
-        => (set (map #(assoc % :first-word (first-word %)) app/all-items))))
+        (defn first-word [s] (-> s :content (string/split #" ") first))
+        (f/select (r/extend app/TodoItem {:first-word [String first-word]}))
+      => (set (map #(assoc % :first-word (first-word %)) app/all-items)))
   (facts "about restrict"
     (fact "restrict to done items"
       (f/select (r/restrict app/TodoItem :done?))
@@ -143,20 +143,28 @@
     (f/select app/ListId) => (set (map #(select-keys % [:id]) app/all-lists))
     (f/select app/ColoredItems) => #{}))
 
-#_(facts "about typechecking"
-  ;TODO
-  )
+(facts
+  "about typechecking"
+  (fact "insertion checks fields"
+        (f/insert app/TodoList {:whatever :yoyos})
+        => (throws #"Item does not match type"))
+  (fact "insertion checks types"
+        (f/insert app/TodoList {:id :not-a-string :title "soemthing" :color "green"})
+        => (throws #"Item does not match type"))
+  (fact "update checks types"
+        (f/update app/TodoList
+                  {:id keyword})))
 
-#_(facts "about contraints"
+(facts "about contraints"
   (reset-app)
   (fact "violate a constraint on insertion"
-    (f/insert app/TodoList {:id "empty-color-list"})
+    (f/insert app/TodoList {:id "empty-color-list" :title "hello" :color ""})
       => (throws #(-> % ex-data :explanation (= "No uncolored lists")))
     (f/select (r/restrict app/TodoList #(empty? (:color %)))) => #{})
   (fact "violate a constraint on update"
     (f/update app/TodoItem {:done? true})
       => (throws #(-> % ex-data :explanation (= "No more than 2 done items in a list")))
-    (count (f/select (r/restrict app/TodoItem :done?))) => 3)
+      (count (f/select (r/restrict app/TodoItem :done?))) => 3)
   (fact "violate a constraint on delete"
     (f/delete app/TodoList)
       => (throws #(-> % ex-data :explanation (= "No items without lists")))

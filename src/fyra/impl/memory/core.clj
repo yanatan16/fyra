@@ -4,6 +4,8 @@
             [clojure.core.typed :as t]
             [fyra.types :as ft]))
 
+(def ^:private db (atom {}))
+
 ;;;;;;;;;;;;;;;;
 ;;; Declares ;;;
 ;;;;;;;;;;;;;;;;
@@ -12,24 +14,41 @@
                                            :fields (t/Map t/Kw t/Type)}
                                :optional {:candidate ft/CandidateKeysList
                                           :foreign ft/ForeignKeysMap})
-                       -> RelVar])
+                       -> memt/RelVar])
 (defn declare-relvar [{:keys [name candidate foreign fields]}]
   (memt/make-relvar {:name name
                      :type fields
                      :candidates candidate
                      :foreign foreign}))
 
-(t/ann declare-view [String ft/IRelation -> ft/IRelation])
+(t/ann declare-view [String memt/Relation -> memt/Relation])
 (defn declare-view [name rel] rel)
 
-(t/ann declare-constraint [String (t/Coll ft/IConstrainable) ft/ConstraintFn -> t/Any])
-(defn declare-constraint [explanation rels f]
-  (throw (Exception. "not implemented"))
-  #_(memt/constrain! explanation rels f))
+(t/ann declare-constraint [String memt/Observable ft/ConstraintFn -> t/Any])
+(defn declare-constraint [explanation rel f]
+  (memt/add-observer rel
+   :constraint (subs explanation 0 (min (count explanation) 20))
+   (fn [_ data _]
+     (if-not (f data)
+       (throw (ex-info "Constraint violated"
+                       {:explanation explanation}))))))
+
+(defn declare-observer [key rel f]
+  (memt/add-observer rel :observer key (fn [old new _] (f old new))))
 
 ;;;;;;;;;;;;;;;;;;
 ;;; Operations ;;;
 ;;;;;;;;;;;;;;;;;;
+
+(t/ann select [memt/Relation -> ft/Data])
+(defn select [rel] (memt/exec rel @db))
+
+(defn- swap-db [rel f]
+  (swap! db #(let [olddb % newdb (f %)]
+               (memt/notify-observers rel :constraint olddb newdb)
+               ;; TODO use core async
+               (memt/notify-observers rel :observer olddb newdb)
+               newdb)))
 
 (t/ann make-update-item-f [(t/Map t/Kw [ft/Tuple -> Any]) ->
                            [(t/Map t/Kw t/Any) -> (t/Map t/Kw t/Any)]])
@@ -37,21 +56,14 @@
   #(reduce (fn [it [k v]] (if (fn? v) (clojure.core/update it k v)
                                       (assoc it k v))) % updates))
 
-(t/ann insert [ft/IInsertable ft/Tuple * -> Any])
+(t/ann insert [memt/UpdatableRelation ft/Tuple * -> Any])
 (defn insert [rel & items]
-  (ft/conj! rel items))
+  (swap-db rel #(memt/insert rel % items)))
 
-(t/ann select [ft/IRelation -> (t/Set ft/Tuple)])
-(defn select [rel] @rel)
-
-(t/ann update [ft/IUpdatable (t/Map t/Kw (t/Fn [ft/Tuple -> Any])) -> Any])
+(t/ann update [memt/UpdatableRelation (t/Map t/Kw (t/Fn [ft/Tuple -> Any])) -> Any])
 (defn update [rel {:as updates}]
-  (ft/update! rel (make-update-item-f updates)))
+  (swap-db rel #(memt/update rel % (make-update-item-f updates))))
 
-(t/ann delete [ft/IDeletable -> Any])
+(t/ann delete [memt/UpdatableRelation -> Any])
 (defn delete [rel]
-  (ft/del! rel))
-
-
-
-
+  (swap-db rel #(memt/del rel %)))
