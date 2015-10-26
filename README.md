@@ -53,7 +53,6 @@ The [real estate](https://github.com/yanatan16/fyra/tree/master/examples/real-es
 
 ## TODO
 
-- Observable API needs to be added
 - Run core.typed on it
 - enable the example
 - add api for storage hints

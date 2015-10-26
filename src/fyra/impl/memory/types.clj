@@ -152,7 +152,11 @@
   (add-observer [this kind key f]
     (add-observer
      rel kind  (str key "-UDF:" (hash this))
-     (fn [old new dbs] (f (execf old) (execf new) dbs))))
+     (fn [old new dbs]
+       (let [old (execf old)
+             new (execf new)]
+         (if (not= old new)
+           (f old new dbs))))))
   (remove-observer [this kind key]
     (remove-observer rel kind (str key "-UDF:" (hash this)))))
 
@@ -177,9 +181,10 @@
             (add-observer
              rel kind (str key "-DF:" (hash this))
              (fn [old new [olddb newdb]]
-               (f (apply execf (collate-data* rels olddb old i))
-                  (apply execf (collate-data* rels newdb new i))
-                  [olddb newdb]))))
+               (let [old (apply execf (collate-data* rels olddb old i))
+                     new (apply execf (collate-data* rels newdb new i))]
+                 (if (not= old new)
+                   (f old new [olddb newdb]))))))
           (map-indexed vector rels)))
   (remove-observer [this kind key]
     (run! #(remove-observer % kind (str key "-UDF:" (hash this))) rels)))

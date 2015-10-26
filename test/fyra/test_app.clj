@@ -60,7 +60,7 @@
 (def project-2-items
   #{{:list "project-2" :content "Add tests" :done? false}
     {:list "project-2" :content "Add type checking" :done? false}
-    {:list "project-2" :content "Deploy to production" :done? true}})
+    {:list "project-2" :content "Deploy to production" :done? false}})
 
 (def all-lists #{home-list project-1-list project-2-list})
 (def all-items (set/union home-items project-1-items project-2-items))

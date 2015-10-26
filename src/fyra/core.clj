@@ -28,6 +28,12 @@
   [explanation rel f]
   (mem/declare-constraint explanation rel f))
 
+(t/ann observe [String memt/Observable ft/ObserveFn -> t/Any])
+(defn observe
+  "Create an observation callback on a relation"
+  [key rel f]
+  (mem/declare-observer key rel f))
+
 (t/ann select [ft/Relation -> ft/Data])
 (defn select
   "Execute a selection operation on a relation"

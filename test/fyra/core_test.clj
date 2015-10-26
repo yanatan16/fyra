@@ -164,8 +164,33 @@
   (fact "violate a constraint on update"
     (f/update app/TodoItem {:done? true})
       => (throws #(-> % ex-data :explanation (= "No more than 2 done items in a list")))
-      (count (f/select (r/restrict app/TodoItem :done?))) => 3)
+      (count (f/select (r/restrict app/TodoItem :done?))) => 2)
   (fact "violate a constraint on delete"
     (f/delete app/TodoList)
       => (throws #(-> % ex-data :explanation (= "No items without lists")))
     (count (f/select app/TodoList)) => 3))
+
+(facts
+ "about observers"
+ (reset-app)
+ (let [hits (atom 0)
+       last (atom nil)]
+   (f/observe "test" (r/restrict app/TodoItem :done?)
+              #(do (swap! hits inc) (reset! last %2)))
+   @hits => 0
+   (fact "insert triggers observer appropriately"
+         (f/insert app/TodoItem {:list "project-2" :content "done" :done? true})
+         (f/insert app/TodoItem {:list "project-2" :content "not done" :done? false})
+         @hits => 1
+         @last => (f/select (r/restrict app/TodoItem :done?)))
+   (fact "update triggers observer appropriately"
+         (f/update (r/restrict app/TodoItem #(= (:content %) "not done"))
+                   {:done? true})
+         (f/update (r/restrict app/TodoList #(= (:id %) "project-1")) {:color "yellow"})
+         @hits => 2
+         @last => (f/select (r/restrict app/TodoItem :done?)))
+   (fact "delete triggers observer appropriately"
+         (f/delete (r/restrict app/TodoItem #(= (:list %) "project-1")))
+         (f/delete app/Unrelated)
+         @hits => 3
+         @last => (f/select (r/restrict app/TodoItem :done?)))))
