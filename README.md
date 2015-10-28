@@ -53,7 +53,6 @@ The [real estate](https://github.com/yanatan16/fyra/tree/master/examples/real-es
 
 ## TODO
 
-- Run core.typed on it
 - enable the example
 - add api for storage hints
 - port to cljs/reagent
