@@ -45,3 +45,9 @@
   "Execute a update operation on a relation.
   Applies f to each item."
   [rel updts] (mem/update rel updts))
+
+
+(defn reltype
+  "Get the type of a relation"
+  [rel]
+  (memt/reltype rel))

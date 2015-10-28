@@ -1,7 +1,6 @@
 (ns fyra.relational
   (:refer-clojure :exclude [extend max])
-  (:require [fyra.impl.memory.relational :as mem]
-            [fyra.types :as ft]))
+  (:require [fyra.impl.memory.relational :as mem]))
 
 (defn project
   "set-projection of the relation. equivalent to mapping select-keys"

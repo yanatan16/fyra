@@ -1,7 +1,6 @@
 (ns fyra.core-test
   (:require [midje.sweet :refer :all]
-            [fyra.core :as f]
-            [fyra.relational :as r]
+            [fyra.sweet :as f]
             [fyra.test-app :refer (reset-app) :as app]
             [clojure.set :as set]
             [clojure.string :as string]))
@@ -40,69 +39,69 @@
 (facts "about selecting using relational algebra"
   (reset-app)
   (fact "project works for a single key"
-    (f/select (r/project app/TodoList :id))
+    (f/select (f/project app/TodoList :id))
       => (set (map #(select-keys % [:id]) app/all-lists)))
   (fact "project works for multiple keys"
-    (f/select (r/project app/TodoList :title :color))
+    (f/select (f/project app/TodoList :title :color))
       => (set (map #(select-keys % [:title :color]) app/all-lists)))
   (fact "project-away works for multiple keys"
-    (f/select (r/project-away app/TodoList :title :color))
+    (f/select (f/project-away app/TodoList :title :color))
     => (set (map #(select-keys % [:id]) app/all-lists)))
   (fact "extend creates new keys"
-        (defn first-word [s] (-> s :content (string/split #" ") first))
-        (f/select (r/extend app/TodoItem {:first-word [String first-word]}))
-      => (set (map #(assoc % :first-word (first-word %)) app/all-items)))
+        (defn first-word [s] (-> s (string/split #" ") first))
+        (f/select (f/extend app/TodoItem :first-word [String (first-word content)]))
+        => (set (map #(assoc % :first-word (first-word (:content %))) app/all-items)))
   (facts "about restrict"
     (fact "restrict to done items"
-      (f/select (r/restrict app/TodoItem :done?))
+      (f/select (f/restrict app/TodoItem done?))
         => (set (filter :done? app/all-items)))
     (fact "restrict to project-1 items"
-      (f/select (r/restrict app/TodoItem #(= (:list %) "project-1"))) => app/project-1-items)
+          (f/select (f/restrict app/TodoItem (= list "project-1"))) => app/project-1-items)
     (fact "restrict nothing"
-      (f/select (r/restrict app/TodoList #(do % true))) => app/all-lists)
+          (f/select (f/restrict app/TodoList true)) => app/all-lists)
     (fact "restrict everything"
-      (f/select (r/restrict app/TodoItem #(do % false))) => #{}))
+          (f/select (f/restrict app/TodoItem false)) => #{}))
   (facts "about summarize"
     (fact "find number of lists by color"
-      (f/select (r/summarize app/TodoList [:color] {:num-items ^Integer #(count %)}))
+      (f/select (f/summarize app/TodoList [:color] {:num-items ^Integer #(count %)}))
         => #{{:color "red" :num-items 1}
              {:color "blue" :num-items 2}})
     (fact "find total number of items without a grouping"
-      (f/select (r/summarize app/TodoItem [] {:num-items ^Integer #(count %)}))
+      (f/select (f/summarize app/TodoItem [] {:num-items ^Integer #(count %)}))
         => #{{:num-items (count app/all-items)}}))
   (facts "about join"
     (fact "join is commutative"
-      (f/select (r/join app/TodoList app/TodoItem))
-        => (f/select (r/join app/TodoItem app/TodoList)))
+      (f/select (f/join app/TodoList app/TodoItem))
+        => (f/select (f/join app/TodoItem app/TodoList)))
     (fact "join works with foreign keys"
-      (f/select (r/join app/TodoList app/TodoItem))
+      (f/select (f/join app/TodoList app/TodoItem))
         => (set/join app/all-lists app/all-items {:id :list}))
     (fact "join fails when two unrelated relations are used"
-      (f/select (r/join app/Unrelated app/TodoItem)) => #{}
+      (f/select (f/join app/Unrelated app/TodoItem)) => #{}
       (f/insert app/Unrelated {:stuff "yoyo"})
-      (f/select (r/join app/Unrelated app/TodoItem))
+      (f/select (f/join app/Unrelated app/TodoItem))
         => (set (map #(assoc % :stuff "yoyo") app/all-items)))
     ;; TODO enable this
     #_(fact "join can use projected and extended relations"
-      (f/select (r/join (r/project app/TodoList :id)
-                        (r/extend app/TodoItem {:abc ^String #(do % "def")}))) => #{}))
+      (f/select (f/join (f/project app/TodoList :id)
+                        (f/extend app/TodoItem :abc [String "def"]))) => #{}))
   (facts "about minus"
     (fact "minus will take out appropriate items"
-      (f/select (r/minus app/TodoItem
-                         (r/restrict app/TodoItem :done?)))
+      (f/select (f/minus app/TodoItem
+                         (f/restrict app/TodoItem done?)))
         => (set (filter #(not (:done? %)) app/all-items))))
   (facts "about combining multiple algebraic functions"
     (fact "find max number of lists by color"
       (f/select
-        (r/summarize (r/summarize app/TodoList [:color] {:num-items ^Integer #(count %)})
-                     [] #(r/maximum-key :num-items %)))
+        (f/summarize (f/summarize app/TodoList [:color] {:num-items ^Integer #(count %)})
+                     [] #(f/maximum-key :num-items %)))
           => #{{:color "blue" :num-items 2}})
     (fact "find number of items in a list"
-      (f/select (r/summarize (r/restrict app/TodoItem #(= (:list %) "home"))
+          (f/select (f/summarize (f/restrict app/TodoItem (= list "home"))
                              [:list] {:num-items ^Integer #(count %)}))
         => #{{:list "home" :num-items (count app/home-items)}})
     (fact "Find number of items in colored lists"
-      (f/select (r/summarize (r/join app/TodoList app/TodoItem)
+      (f/select (f/summarize (f/join app/TodoList app/TodoItem)
                              [:color]
                              {:num-items ^Integer #(count %)}))
         => #{{:color "red" :num-items (count app/home-items)}
@@ -111,27 +110,27 @@
 (facts "about updating and deleting using relational algebra"
   (fact "updating a single list with a function works"
     (let [g #(update-in % [:title] str "UPDATED")]
-      (f/update (r/restrict app/TodoList #(= (:id %) "home")) {:title #(str % "UPDATED")})
-      (f/select (r/restrict app/TodoList #(= (:id %) "home")))
+      (f/update (f/restrict app/TodoList (= id "home")) {:title #(str % "UPDATED")})
+      (f/select (f/restrict app/TodoList (= id "home")))
         => #{(g app/home-list)}))
   (fact "updating multiple items with a set value works"
     (let [g #(assoc-in % [:done?] false)]
-      (f/update (r/restrict app/TodoItem #(= (:list %) "home")) {:done? false})
-      (f/select (r/restrict app/TodoItem #(= (:list %) "home")))
+      (f/update (f/restrict app/TodoItem (= list "home")) {:done? false})
+      (f/select (f/restrict app/TodoItem (= list "home")))
         => (set (map g app/home-items))))
   (fact "updating multiple items with multiple values works"
     (let [g #(-> % (assoc :done? false) (update :content (partial str "titlez")))]
-      (f/update (r/restrict app/TodoItem #(= (:list %) "project-1")) {:done? false :content (partial str "titlez")})
-      (f/select (r/restrict app/TodoItem #(= (:list %) "project-1")))
+      (f/update (f/restrict [app/TodoItem :as ti] (= ti/list "project-1")) {:done? false :content (partial str "titlez")})
+      (f/select (f/restrict [app/TodoItem :as ti] (= ti/list "project-1")))
         => (set (map g app/project-1-items))))
   (fact "deleting a single list works"
-    (f/delete (r/restrict app/TodoItem #(= (:list %) "project-1")))
-    (f/delete (r/restrict app/TodoList #(= (:id %) "project-1")))
-    (f/select (r/restrict app/TodoList #(= (:id %) "project-1")))
+        (f/delete (f/restrict app/TodoItem (= list "project-1")))
+        (f/delete (f/restrict app/TodoList (= id "project-1")))
+        (f/select (f/restrict app/TodoList (= id "project-1")))
       => #{})
   (fact "deleting a multiple items works"
-    (f/delete (r/restrict app/TodoItem #(= (:list %) "project-1")))
-    (f/select (r/restrict app/TodoItem #(= (:list %) "project-1")))
+        (f/delete (f/restrict app/TodoItem (= list "project-1")))
+        (f/select (f/restrict app/TodoItem (= list "project-1")))
       => #{}))
 
 (facts "about defview"
@@ -160,11 +159,11 @@
   (fact "violate a constraint on insertion"
     (f/insert app/TodoList {:id "empty-color-list" :title "hello" :color ""})
       => (throws #(-> % ex-data :explanation (= "No uncolored lists")))
-    (f/select (r/restrict app/TodoList #(empty? (:color %)))) => #{})
+      (f/select (f/restrict app/TodoList (empty? color))) => #{})
   (fact "violate a constraint on update"
     (f/update app/TodoItem {:done? true})
       => (throws #(-> % ex-data :explanation (= "No more than 2 done items in a list")))
-      (count (f/select (r/restrict app/TodoItem :done?))) => 2)
+      (count (f/select (f/restrict app/TodoItem done?))) => 2)
   (fact "violate a constraint on delete"
     (f/delete app/TodoList)
       => (throws #(-> % ex-data :explanation (= "No items without lists")))
@@ -175,22 +174,22 @@
  (reset-app)
  (let [hits (atom 0)
        last (atom nil)]
-   (f/observe "test" (r/restrict app/TodoItem :done?)
+   (f/observe "test" (f/restrict [app/TodoItem :as ti] ti/done?)
               #(do (swap! hits inc) (reset! last %2)))
    @hits => 0
    (fact "insert triggers observer appropriately"
          (f/insert app/TodoItem {:list "project-2" :content "done" :done? true})
          (f/insert app/TodoItem {:list "project-2" :content "not done" :done? false})
          @hits => 1
-         @last => (f/select (r/restrict app/TodoItem :done?)))
+         @last => (f/select (f/restrict app/TodoItem done?)))
    (fact "update triggers observer appropriately"
-         (f/update (r/restrict app/TodoItem #(= (:content %) "not done"))
+         (f/update (f/restrict app/TodoItem (= content "not done"))
                    {:done? true})
-         (f/update (r/restrict app/TodoList #(= (:id %) "project-1")) {:color "yellow"})
+         (f/update (f/restrict app/TodoList (= id "project-1")) {:color "yellow"})
          @hits => 2
-         @last => (f/select (r/restrict app/TodoItem :done?)))
+         @last => (f/select (f/restrict app/TodoItem done?)))
    (fact "delete triggers observer appropriately"
-         (f/delete (r/restrict app/TodoItem #(= (:list %) "project-1")))
+         (f/delete (f/restrict app/TodoItem (= list "project-1")))
          (f/delete app/Unrelated)
          @hits => 3
-         @last => (f/select (r/restrict app/TodoItem :done?)))))
+         @last => (f/select (f/restrict app/TodoItem done?)))))
