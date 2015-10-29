@@ -42,8 +42,9 @@ So I think there might be something here. I'm probably wrong, because its been a
 
 Currently, you'll have to read some code.
 
-- [defrelvar, defview, select/update/delete](https://github.com/yanatan16/fyra/blob/master/src/fyra/core.clj)
+- [defrelvar, defview, select/update/delete](https://github.com/yanatan16/fyra/blob/master/src/fyra/sweet.clj)
 - [relational agebraic operators](https://github.com/yanatan16/fyra/blob/master/src/fyra/relational.clj)
+- [guts of memory implementation](https://github.com/yanatan16/fyra/blob/master/src/fyra/impl/memory/types.clj)
 - [test app inserting and deffing](https://github.com/yanatan16/fyra/blob/master/test/fyra/test_app.clj)
 - [tests using select/update/delete with algebraic operations](https://github.com/yanatan16/fyra/blob/master/test/fyra/core_test.clj)
 
@@ -55,7 +56,8 @@ The [real estate](https://github.com/yanatan16/fyra/tree/master/examples/real-es
 
 - enable the example
 - add api for storage hints
-- port to cljs/reagent
+- implementation for cljs/reagent
+- implementation for postgres
 
 ## License
 
