@@ -1,48 +1,47 @@
 (ns fyra.test-app
-  (:require [fyra.core :as f]
-            [fyra.relational :as r]
+  (:require [fyra.sweet :as f :refer (defrelvar defview)]
+            [fyra.impl.memory.core :refer [create-db]]
+            [schema.core :as s]
             [clojure.set :as set]))
 
-(def TodoList
-  (f/relvar "TodoList"
-    {:id String
-     :title String
-     :color String}
-    :candidate [[:id] [:title :color]]))
+(def db (create-db))
 
-(def TodoItem
-  (f/relvar "TodoItem"
-    {:list String
-     :content String
-     :done? Boolean}
-    :foreign {'TodoList {:list :id}}))
 
-(def Unrelated (f/relvar "Unrelated" {:stuff String}))
+(defrelvar TodoList db
+  {:id s/Str
+   :title s/Str
+   :color s/Str}
+  :candidate [[:id] [:title :color]])
 
-(def ListId (f/view "ListId" (r/project TodoList :id)))
-(def ColoredItems
-  (f/view "ColoredItems"
-    (r/project (r/join TodoList TodoItem)
-               :content :color)))
+(defrelvar TodoItem db
+  {:list s/Str
+   :content s/Str
+   :done? s/Bool}
+  :foreign {'TodoList {:list :id}})
 
-(f/constrain "No uncolored lists"
-  (r/restrict TodoList #(empty? (:color %)))
+(defrelvar Unrelated db
+  {:stuff s/Str})
+
+(defview ListId db (f/project TodoList :id))
+(defview ColoredItems db
+  (f/project (f/join TodoList TodoItem)
+             :content :color))
+
+(f/constrain db "No uncolored lists"
+  (f/restrict TodoList (empty? color))
   #(= 0 (count %)))
 
-(f/constrain "No more than 2 done items in a list"
-  (r/restrict (r/summarize (r/restrict TodoItem :done?)
+(f/constrain db "No more than 2 done items in a list"
+  (f/restrict (f/summarize (f/restrict TodoItem done?)
                            [:list]
-                           {:num-items ^Integer #(count %)})
-              (fn [{:keys [num-items]}] (< 2 num-items)))
+                           {:num-items [s/Int #(count %)]})
+              (< 2 num-items))
   #(= 0 (count %)))
 
-(f/constrain "No items without lists"
- (r/minus TodoItem (r/project (r/join TodoItem TodoList)
+(f/constrain db "No items without lists"
+ (f/minus TodoItem (f/project (f/join TodoItem TodoList)
                               :list :content :done?))
- #(= 0 (count %))
-
-
- )
+ #(= 0 (count %)))
 
 (def home-list
   {:id "home" :title "TODO at home" :color "red"})
@@ -74,13 +73,13 @@
                             set))
 
 (defn reset-app []
-  (f/delete TodoItem)
-  (f/delete TodoList)
-  (f/delete Unrelated)
+  (f/delete db TodoItem)
+  (f/delete db TodoList)
+  (f/delete db Unrelated)
 
   ;; Insert some data
-  (f/insert TodoList home-list project-1-list project-2-list)
+  (f/insert db TodoList home-list project-1-list project-2-list)
 
-  (apply f/insert TodoItem home-items)
-  (apply f/insert TodoItem project-1-items)
-  (apply f/insert TodoItem project-2-items))
+  (apply f/insert db TodoItem home-items)
+  (apply f/insert db TodoItem project-1-items)
+  (apply f/insert db TodoItem project-2-items))

@@ -2,11 +2,15 @@
   (:refer-clojure :exclude [update])
   (:require [clojure.set :as set]
             [clojure.string :as string]
+            [schema.core :as s]
             [fyra.impl.memory.util :refer [map-values]])
   (:import [clojure.lang IMeta]))
 
+(defprotocol WrappedRelation
+  (unwrap-rel [this] "Get the underlying relation from a reify'd type"))
+
 (defprotocol Relation
-  (reltype [this])
+  (relschema [this])
   (exec [this db])
   (syms [this])
   (foreign-keys [this rel]))
@@ -20,16 +24,16 @@
   (add-observer [this kind  key f])
   (remove-observer [this kind  key]))
 
-(defn validate-type [type item]
-  (and (= (set (keys type)) (set (keys item)))
-       (every? (fn [[k v]] (instance? (get type k) v)) item)))
+(defn validate-schema [schema item]
+  (not (s/check schema item)))
 
 (defn candidate [item ck]
   (if (empty? ck) item (select-keys item ck)))
 
-(defn assert-type [type & items]
-  (if-not (every? (partial validate-type type) items)
-    (throw (ex-info "Item does not match type" {:type type}))))
+(defn assert-schema [schema items]
+  (if-not (every? (partial validate-schema schema) items)
+    (throw (ex-info "Item does not match schema" {:schema schema})))
+  items)
 
 (defn relvar-conj [candidates data item]
   (run! (fn [ck] (if-not (nil? (get-in data [ck (candidate item ck)]))
@@ -50,18 +54,18 @@
   (or (not-empty (foreign-keys rel1 rel2))
       (set/map-invert (foreign-keys rel2 rel1))))
 
-(defn foreign-keys-check-type [type rel1 rel2]
+(defn foreign-keys-check-schema [schema rel1 rel2]
   (let [fk (foreign-keys* rel1 rel2)]
-    (assert (every? type fk)
+    (assert (every? schema fk)
             (format "Cannot join because foreign keys have been removed: %s"
-                    (pr-str type)))
+                    (pr-str schema)))
     fk))
 
 (defn relvar-all [data] (or (get data []) #{}))
 
-(deftype RelVar [name type candidates foreign aobv]
+(deftype RelVar [name schema candidates foreign aobv]
   Relation
-  (reltype [this] type)
+  (relschema [this] schema)
   (exec [this db] (relvar-all (get db name)))
   (syms [this] [(symbol name)])
   (foreign-keys [this rel]
@@ -69,7 +73,7 @@
 
   UpdatableRelation
   (insert [this db items]
-    (apply assert-type type items)
+    (assert-schema schema items)
     (update-in db [name]
                (partial  reduce (partial relvar-conj candidates))
                items))
@@ -82,11 +86,12 @@
   (update [this db f]
     (update-in db [name] #(->> (or (get % []) #{})
                                (map f)
+                               (assert-schema schema)
                                (reduce (partial relvar-conj candidates) {}))))
 
   IMeta
   (meta [_] {:name name
-             :type type
+             :schema schema
              :candidate candidates
              :foreign foreign})
 
@@ -106,12 +111,12 @@
         (and (vector? cks) (not-empty cks)) [[] cks]
         :else [[]]))
 
-(defn make-relvar [{:keys [name type candidates foreign]}]
-  (->RelVar name type (munge-candidates candidates) foreign (atom {})))
+(defn make-relvar [{:keys [name schema candidates foreign]}]
+  (->RelVar name schema (munge-candidates candidates) foreign (atom {})))
 
 (deftype UpdatableDerivedRelation [execf rel]
   Relation
-  (reltype [this] (reltype rel))
+  (relschema [this] (relschema rel))
   (exec [this db] (execf (exec rel db)))
   (syms [this] (syms rel))
   (foreign-keys [this rel2] (foreign-keys rel rel2))
@@ -146,13 +151,13 @@
 (defn collate-data* [rels db data i]
   (map-indexed #(if (= %1 i) data (exec %2 db)) rels))
 
-(deftype DerivedRelation [execf type rels]
+(deftype DerivedRelation [execf schema rels]
   Relation
-  (reltype [this] type)
+  (relschema [this] schema)
   (exec [this db] (apply execf (map #(exec % db) rels)))
   (syms [this] (apply concat (map syms rels)))
   (foreign-keys [this rel2]
-    (apply merge (map #(foreign-keys-check-type (reltype this) % rel2) rels)))
+    (apply merge (map #(foreign-keys-check-schema (relschema this) % rel2) rels)))
 
   IMeta (meta [_] {:views (map meta rels) :updatable false})
 
