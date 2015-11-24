@@ -1,10 +1,10 @@
 (ns fyra.impl.memory.types
-  (:refer-clojure :exclude [update])
+  (:refer-clojure :exclude [update format])
   (:require [clojure.set :as set]
             [clojure.string :as string]
             [schema.core :as s]
-            [fyra.impl.memory.util :refer [map-values]])
-  (:import [clojure.lang IMeta]))
+            [fyra.impl.memory.util :refer [map-values format]]))
+
 
 (defprotocol WrappedRelation
   (unwrap-rel [this] "Get the underlying relation from a reify'd type"))
@@ -89,12 +89,6 @@
                                (assert-schema schema)
                                (reduce (partial relvar-conj candidates) {}))))
 
-  IMeta
-  (meta [_] {:name name
-             :schema schema
-             :candidate candidates
-             :foreign foreign})
-
   Observable
   (notify-observers [this kind olddb newdb]
     (let [old (exec this olddb)
@@ -130,10 +124,6 @@
   (update [this db f]
     (update rel db #(if (not-empty (execf #{%})) (f %) %)))
 
-  IMeta
-  (meta [_] {:view (meta rel)
-             :updatable true})
-
   Observable
   (notify-observers [this kind olddb newdb]
     (notify-observers rel kind olddb newdb))
@@ -158,8 +148,6 @@
   (syms [this] (apply concat (map syms rels)))
   (foreign-keys [this rel2]
     (apply merge (map #(foreign-keys-check-schema (relschema this) % rel2) rels)))
-
-  IMeta (meta [_] {:views (map meta rels) :updatable false})
 
   Observable
   (notify-observers [this kind olddb newdb]

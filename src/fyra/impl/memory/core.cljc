@@ -1,8 +1,9 @@
 (ns fyra.impl.memory.core
   (:refer-clojure :exclude [update])
   (:require [fyra.impl.memory.types :as memt]
-            [fyra.impl.memory.relational :as memr])
-  (:import [fyra.core FRPDb]))
+            [fyra.impl.memory.relational :as memr]
+            #?(:cljs [fyra.core :refer (FRPDb)]))
+  #?(:clj (:import [fyra.core FRPDb])))
 
 (defn- swap-db! [db rel f]
   (swap! db #(let [olddb % newdb (f %)]

@@ -1,6 +1,7 @@
 (ns fyra.core-test
   (:require [midje.sweet :refer :all]
-            [fyra.sweet :as f]
+            [fyra.sweet :as f
+             #?@(:cljs [:include-macros true])]
             [fyra.test-app :refer (reset-app db) :as app]
             [schema.core :as s]
             [clojure.set :as set]

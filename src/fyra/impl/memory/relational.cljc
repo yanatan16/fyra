@@ -1,10 +1,11 @@
 (ns fyra.impl.memory.relational
-  (:refer-clojure :exclude [extend])
+  (:refer-clojure :exclude [extend format])
   (:require [clojure.set :as set]
-            [fyra.impl.memory.types :as memt]
-            [fyra.impl.memory.util :refer [map-values]])
-  (:import [fyra.relational FRPRelation]
-           [fyra.impl.memory.types WrappedRelation]))
+            [fyra.impl.memory.util :refer [map-values format]]
+            [fyra.impl.memory.types :as memt :refer (WrappedRelation)]
+            [fyra.relational :refer (FRPRelation)])
+  #_(:clj (:import [fyra.relational FRPRelation]
+                   [fyra.impl.memory.types WrappedRelation])))
 
 ;; Some helpers
 

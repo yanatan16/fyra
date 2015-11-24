@@ -1,5 +1,6 @@
 (ns fyra.test-app
-  (:require [fyra.sweet :as f :refer (defrelvar defview)]
+  (:require [fyra.sweet :as f :refer (defrelvar defview)
+             #?@(:cljs [:include-macros true])]
             [fyra.impl.memory.core :refer [create-db]]
             [schema.core :as s]
             [clojure.set :as set]))
