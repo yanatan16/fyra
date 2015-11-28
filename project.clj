@@ -17,11 +17,8 @@
               {"unit" ["phantomjs" "phantom/unit-test.js"
                        "resources/private/html/unit-test.html"]}}
 
-  :hooks [leiningen.cljsbuild]
+  ;:hooks [leiningen.cljsbuild]
 
-  :profiles {:dev {:dependencies [[midje "1.8.2"]
-                                  [org.clojure/clojurescript "1.7.170"]]
-                   :plugins [[lein-midje "3.2"]
-                             [lein-cljsbuild "1.1.1"]
-                             [lein-figwheel "0.5.0-1"]]
-                   :injections [(use 'midje.repl)]}})
+  :profiles {:dev {:dependencies [[org.clojure/clojurescript "1.7.170"]]
+                   :plugins [[lein-cljsbuild "1.1.1"]
+                             [lein-figwheel "0.5.0-1"]]}})

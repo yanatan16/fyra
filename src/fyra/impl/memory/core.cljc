@@ -33,7 +33,7 @@
       (observe [_ key rel f]
         (memt/add-observer (memt/unwrap-rel rel) :observer key
                            (fn [old new _] (f old new))))
-      (stop-observe [_ rel key]
+      (stop-observe [_ key rel]
         (memt/remove-observer (memt/unwrap-rel rel) :observer key))
       (select [_ rel]
         (memt/exec (memt/unwrap-rel rel) @db))

@@ -20,7 +20,7 @@
     "Create an observation callback (on key) on a relation.
      If the relation changes, f will be caled with the
      executed relation in previous state and new state")
-  (stop-observe [db rel key] "Stop observing on key")
+  (stop-observe [db key rel] "Stop observing on key")
   (select [db rel] "Execute a relation against current db state")
   (insert [db baserel items]
     "Insert items into a base relvar. Items will be typechecked against schema.")

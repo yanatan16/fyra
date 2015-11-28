@@ -45,6 +45,7 @@
 (defn insert [db baserel & items] (f/insert db baserel items))
 
 (def observe f/observe)
+(def stop-observe f/stop-observe)
 (def constrain f/constrain)
 
 (def select f/select)

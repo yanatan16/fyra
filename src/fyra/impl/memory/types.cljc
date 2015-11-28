@@ -57,8 +57,9 @@
 (defn foreign-keys-check-schema [schema rel1 rel2]
   (let [fk (foreign-keys* rel1 rel2)]
     (assert (every? schema fk)
-            (format "Cannot join because foreign keys have been removed: %s"
-                    (pr-str schema)))
+            (format "Cannot join because foreign keys have been removed: %s < %s"
+                    (pr-str schema)
+                    (pr-str fk)))
     fk))
 
 (defn relvar-all [data] (or (get data []) #{}))
@@ -129,14 +130,14 @@
     (notify-observers rel kind olddb newdb))
   (add-observer [this kind key f]
     (add-observer
-     rel kind  (str key "-UDF:" (hash this))
+     rel kind key
      (fn [old new dbs]
        (let [old (execf old)
              new (execf new)]
          (if (not= old new)
            (f old new dbs))))))
   (remove-observer [this kind key]
-    (remove-observer rel kind (str key "-UDF:" (hash this)))))
+    (remove-observer rel kind key)))
 
 (defn collate-data* [rels db data i]
   (map-indexed #(if (= %1 i) data (exec %2 db)) rels))
@@ -155,7 +156,7 @@
   (add-observer [this kind key f]
     (run! (fn [[i rel]]
             (add-observer
-             rel kind (str key "-DF:" (hash this))
+             rel kind key
              (fn [old new [olddb newdb]]
                (let [old (apply execf (collate-data* rels olddb old i))
                      new (apply execf (collate-data* rels newdb new i))]
@@ -163,4 +164,4 @@
                    (f old new [olddb newdb]))))))
           (map-indexed vector rels)))
   (remove-observer [this kind key]
-    (run! #(remove-observer % kind (str key "-UDF:" (hash this))) rels)))
+    (run! #(remove-observer % kind key) rels)))
